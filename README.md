@@ -1,0 +1,1 @@
+Simple app monitoring PC ram usage and sending logs to Azure DB. Made in Java
