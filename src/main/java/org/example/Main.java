@@ -23,7 +23,7 @@ public class Main {
             DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
             String formattedDateTime = currentDateTime.format(formatter);
 
-            System.out.println("Used memory: " + usedMemory + " MB || Date:" + formattedDateTime + " || PC name: " + computerName);
+            System.out.println("Used memory: " + usedMemory + " MB || Date: " + formattedDateTime + " || PC name: " + computerName);
 
             try {
                 Thread.sleep(30000);
