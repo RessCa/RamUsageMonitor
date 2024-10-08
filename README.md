@@ -1,7 +1,6 @@
 ## Ram usage monitor
 
-Simple app monitoring pc ram usage and sending it to the database via SpringBoot API along with date and time of the log and pc name
-
-SpringBoot API github repo here -> 
+Simple app monitoring pc ram usage and sending it to the database along with pc name
 
 App made in java
+Using jdbc to query the database  
