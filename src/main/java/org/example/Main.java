@@ -1,35 +1,50 @@
 package org.example;
 
-import org.apache.hc.client5.http.classic.methods.HttpPost;
-import org.apache.hc.client5.http.impl.classic.CloseableHttpClient;
-import org.apache.hc.client5.http.impl.classic.CloseableHttpResponse;
-import org.apache.hc.client5.http.impl.classic.HttpClients;
-import org.apache.hc.core5.http.io.entity.StringEntity;
 import oshi.SystemInfo;
 import oshi.hardware.GlobalMemory;
 
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
+import java.io.InputStream;
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.PreparedStatement;
+import java.sql.SQLException;
+import java.util.Properties;
 
 public class Main {
 
-    private static final String API_URL = "http://localhost:8080/";
+    private static final String SQL_INSERT = "INSERT INTO ramusagelogs(ram_usage, pc_name) VALUES (?, ?)";
 
     public static void main(String[] args) {
+        Properties properties = new Properties();
+
+        try (InputStream input = Main.class.getClassLoader().getResourceAsStream("application.properties")) {
+            if (input == null) {
+                return;
+            }
+            properties.load(input);
+        } catch (IOException ex) {
+            ex.printStackTrace();
+            return;
+        }
+
+        String dbUrl = properties.getProperty("db.url");
+        String dbUser = properties.getProperty("db.user");
+        String dbPassword = properties.getProperty("db.password");
+
         SystemInfo systemInfo = new SystemInfo();
         GlobalMemory memory = systemInfo.getHardware().getMemory();
         String computerName = System.getenv("COMPUTERNAME");
 
-        try (CloseableHttpClient httpClient = HttpClients.createDefault()) {
+
+        try (Connection connection = DriverManager.getConnection(dbUrl, dbUser, dbPassword)) {
             //infinite loop checking ram usage every 30 seconds
             while (true) {
                 long totalMemory = memory.getTotal();
                 long availableMemory = memory.getAvailable();
                 long usedMemory = (totalMemory - availableMemory) / (1024 * 1024);
 
-                String jsonHttpRequest = String.format("{\"ramUsage\": %d, \"computerName\": \"%s\"}", usedMemory, computerName);
-
-                sendDataToAPI(httpClient, jsonHttpRequest);
+                sendDataToDatabase(connection, usedMemory, computerName);
 
                 try {
                     Thread.sleep(30000);
@@ -37,25 +52,19 @@ public class Main {
                     throw new RuntimeException(e);
                 }
             }
-        } catch (IOException e) {
+        } catch (SQLException e) {
             throw new RuntimeException(e);
         }
     }
 
-    private static void sendDataToAPI(CloseableHttpClient httpClient, String jsonHttpRequest) {
-        HttpPost postRequest = new HttpPost(API_URL);
-        postRequest.setHeader("Content-Type", "application/json");
+    private static void sendDataToDatabase(Connection connection, long ramUsage, String pcName) {
+        try (PreparedStatement preparedStatement = connection.prepareStatement(SQL_INSERT)) {
+            preparedStatement.setLong(1, ramUsage);
+            preparedStatement.setString(2, pcName);
 
-        StringEntity entity = new StringEntity(jsonHttpRequest, StandardCharsets.UTF_8);
-        postRequest.setEntity(entity);
-
-        try (CloseableHttpResponse response = httpClient.execute(postRequest)) {
-            int statusCode = response.getCode();
-            if(statusCode != 200) {
-                System.out.println("ERROR Server code:" + statusCode);
-            }
-        } catch (IOException e) {
-            throw new RuntimeException(e);
+            preparedStatement.executeUpdate();
+        } catch (SQLException e) {
+            e.printStackTrace();
         }
     }
 }
